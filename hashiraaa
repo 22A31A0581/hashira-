@@ -1,0 +1,80 @@
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.*;
+
+public class SecretSharing {
+
+    // Method to decode a number given its base and value
+    private static long decode(String value, int base) {
+        return Long.parseLong(value, base);
+    }
+
+    // Method to compute constant term using Lagrange Interpolation
+    private static long lagrangeInterpolation(Map<Integer, Long> points) {
+        long result = 0;
+        int k = points.size();
+
+        for (Map.Entry<Integer, Long> entry : points.entrySet()) {
+            int xi = entry.getKey();
+            long yi = entry.getValue();
+
+            double term = yi;
+            for (Map.Entry<Integer, Long> other : points.entrySet()) {
+                int xj = other.getKey();
+                if (xj != xi) {
+                    term *= (0.0 - xj) / (xi - xj);
+                }
+            }
+            result += term;
+        }
+        return Math.round(result); // rounding to nearest integer
+    }
+
+    // Simple JSON parser for this specific input format
+    private static Map<Integer, Long> parseJson(String json) {
+        Map<Integer, Long> points = new HashMap<>();
+
+        json = json.trim().replaceAll("\\s+", ""); // remove spaces
+        json = json.substring(1, json.length() - 1); // remove outer { }
+
+        String[] entries = json.split("},");
+        for (String entry : entries) {
+            if (!entry.endsWith("}")) entry = entry + "}";
+
+            // Example: "1":{"base":10,"value":"4"}
+            String[] parts = entry.split(":", 2);
+            int x = Integer.parseInt(parts[0].replaceAll("\"", ""));
+
+            String body = parts[1];
+            int baseIndex = body.indexOf("\"base\":") + 7;
+            int baseEnd = body.indexOf(",", baseIndex);
+            int base = Integer.parseInt(body.substring(baseIndex, baseEnd));
+
+            int valueIndex = body.indexOf("\"value\":\"") + 9;
+            int valueEnd = body.indexOf("\"", valueIndex);
+            String value = body.substring(valueIndex, valueEnd);
+
+            long y = decode(value, base);
+            points.put(x, y);
+        }
+
+        return points;
+    }
+
+    public static void main(String[] args) throws IOException {
+        // Load JSON files (place them in same folder as this .java file)
+        String json1 = new String(Files.readAllBytes(Paths.get("testcase1.json")));
+        String json2 = new String(Files.readAllBytes(Paths.get("testcase2.json")));
+
+        // Parse JSON and decode y values
+        Map<Integer, Long> points1 = parseJson(json1);
+        Map<Integer, Long> points2 = parseJson(json2);
+
+        // Compute secret (constant term f(0)) using Lagrange
+        long secret1 = lagrangeInterpolation(points1);
+        long secret2 = lagrangeInterpolation(points2);
+
+        System.out.println("Secret for Testcase 1: " + secret1);
+        System.out.println("Secret for Testcase 2: " + secret2);
+    }
+}
